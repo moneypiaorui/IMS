@@ -1,0 +1,26 @@
+{
+  "name": "ims",
+  "version": "1.0.0",
+  "description": "- 管理者设计面试信息收集表\r - 收集表数据汇总\r - 通知面试者面试消息\r - 面试者注册账号并查看面试流程和转态\r - 面试者能更新相关信息\r - 管理者能修改面试者的权限（查看和更改）",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "\t"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.7.7",
+    "bcrypt": "^5.1.1",
+    "body-parser": "^1.20.3",
+    "cors": "^2.8.5",
+    "express": "^4.21.0",
+    "fs": "^0.0.1-security",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.1",
+    "sqlite3": "^5.1.7"
+  }
+}

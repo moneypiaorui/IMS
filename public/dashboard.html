@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>User Management</title>
+  <!-- 引入 Vue.js -->
+  <script src="./js/vue.min.js"></script>
+
+  <script src="./js/axios.min.js"></script>
+  <!-- 引入样式 -->
+  <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+  <!-- 引入组件库 -->
+  <script src="https://unpkg.com/element-ui/lib/index.js"></script>
+  <style>
+    body {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      padding: 0 0;
+      margin: 0 0;
+      font-family: Arial, sans-serif;
+      z-index: -5;
+    }
+
+    h1 {
+      text-align: center;
+      width: 100%;
+      color: #409EFF;
+      font-family: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "微软雅黑", Arial, sans-serif;
+    }
+
+    .el-menu-vertical-demo:not(.el-menu--collapse) {
+      width: 20vw;
+      max-width: 300px;
+      min-width: 150px;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="app" style="width: 100%;margin: auto auto;">
+    <el-tabs type="border-card" tab-position="left" style="height: 100vh;">
+
+      <el-tab-pane>
+        <span slot="label"><i class="el-icon-user"></i> 用户管理</span>
+
+        <h1>用户管理</h1>
+        <!-- 表格显示用户列表 -->
+        <el-table :max-height='viewHeight-200' :data="users">
+          <el-table-column prop="id" label="ID" width="40"></el-table-column>
+          <el-table-column prop="username" label="用户名"></el-table-column>
+          <el-table-column prop="userRole" label="权限"></el-table-column>
+          <el-table-column label="操作" width="155">
+            <template slot-scope="scope">
+              <el-button type="primary" @click="editUser(scope.row)">编辑</el-button>
+              <el-popover placement="top-end" width="160" v-model="visible_userDelete[scope.$index]">
+                <p>确定删除吗？</p>
+                <div style="text-align: right; margin: 0">
+                  <el-button size="mini" type="text" @click="$set(visible_userDelete,scope.$index,false)">取消</el-button>
+                  <el-button type="danger" size="mini"
+                    @click="$set(visible_userDelete,scope.$index,false);deleteUser(scope.row)">确定</el-button>
+                </div>
+                <el-button slot="reference" class="el-icon-delete" type="danger"></el-button>
+              </el-popover>
+            </template>
+          </el-table-column>
+        </el-table>
+        <!-- 添加用户按钮 -->
+        <el-button style="margin: 10px 10px;" type="primary" @click="addDialogVisible = true">添加用户</el-button>
+
+        <!-- 添加用户表单 -->
+        <el-dialog :visible.sync="addDialogVisible" title="添加用户" width="70%">
+          <el-form :model="userForm" label-width="80px">
+            <el-form-item label="用户名">
+              <el-input v-model="userForm.username"></el-input>
+            </el-form-item>
+            <el-form-item label="权限">
+              <el-select v-model="userForm.userRole" placeholder="选择用户身份">
+                <el-option label="管理员" value="admin"></el-option>
+                <el-option label="普通用户" value="user"></el-option>
+                <el-option label="访客" value="guest" :disabled="true"></el-option>
+              </el-select>
+            </el-form-item>
+            <el-form-item label="密码">
+              <el-input v-model="userForm.password"></el-input>
+            </el-form-item>
+          </el-form>
+          <div slot="footer" class="dialog-footer">
+            <el-button @click="addDialogVisible = false">取消</el-button>
+            <el-button type="primary" @click="addUser">确定</el-button>
+          </div>
+        </el-dialog>
+      </el-tab-pane>
+
+      <el-tab-pane>
+        <span slot="label"><i class="el-icon-document"></i>打印记录</span>
+          <h1>打印记录</h1>
+          <div>
+            <el-date-picker v-model="dateTimePick" type="datetimerange" range-separator="至" start-placeholder="开始日期"
+              end-placeholder="结束日期">
+            </el-date-picker>
+            <el-button type="primary" @click="getPrintLogs">查询</el-button>
+          </div>
+          <!-- 表格显示打印列表 -->
+          <el-table :max-height="viewHeight-200" show-summary :data="printLogs">
+            <el-table-column prop="printTimestamp" label="时间" sortable></el-table-column>
+            <el-table-column prop="username" label="用户" sortable></el-table-column>
+            <el-table-column prop="filename" label="文件"></el-table-column>
+            <el-table-column prop="pages" label="页数"></el-table-column>
+          </el-table>
+      </el-tab-pane>
+
+      <el-tab-pane>
+        <span slot="label"><i class="el-icon-folder-opened"></i> 文件管理</span>
+        <h1>文件管理</h1>
+        <!-- 表格显示文件列表 -->
+        <el-table :max-height='viewHeight-200' :data="files">
+          <el-table-column prop="timestamp" label="上传时间" sortable></el-table-column>
+          <el-table-column prop="filename" label="文件名"></el-table-column>
+          <el-table-column prop="username" label="用户名" sortable></el-table-column>
+          <el-table-column label="操作" width="155" >
+            <template slot-scope="scope">
+              <el-button type="primary" @click="downloadFile(scope.row)">下载</el-button>
+              <el-popover placement="top-end" width="160" v-model="visible_fileDelete[scope.$index]">
+                <p>确定删除吗？</p>
+                <div style="text-align: right; margin: 0">
+                  <el-button size="mini" type="text" @click="$set(visible_fileDelete,scope.$index,false)">取消</el-button>
+                  <el-button type="danger" size="mini"
+                    @click="$set(visible_fileDelete,scope.$index,false);deleteFile(scope.row)">确定</el-button>
+                </div>
+                <el-button slot="reference" class="el-icon-delete" type="danger"></el-button>
+              </el-popover>
+            </template>
+          </el-table-column>
+        </el-table>
+      </el-tab-pane>
+    </el-tabs>
+
+    <!-- <el-container  style="height: 100vh; border: 1px solid #eee">
+      <el-aside width = "auto" style="background-color: rgb(238, 241, 246)">
+        <el-menu class="el-menu-vertical-demo"  default-active="1" :collapse="isCollapse">
+          <el-button style= "width:100%" class="el-icon-s-fold" @click = "isCollapse = 0" v-if = "isCollapse"></el-button>
+          <el-button style= "width:100%" class="el-icon-s-unfold" @click = "isCollapse = 1" v-else></el-button>
+          <el-menu-item index='1'>
+            <i class="el-icon-user"></i>
+            <span slot="title">用户管理</span>
+          </el-menu-item>
+          <el-menu-item index='2'>
+            <i class="el-icon-document"></i>
+            <span slot="title">打印记录</span>
+          </el-menu-item>
+          <el-menu-item index='3'>
+            <i class="el-icon-folder-opened"></i>
+            <span slot="title">文件管理</span>
+          </el-menu-item>
+          <el-submenu index='4'>
+            <template slot="title">
+              <i class="el-icon-message"></i>
+              <span slot="title">文件管理</span>
+            </template>
+          </el-submenu>
+        </el-menu>
+      </el-aside>
+      <el-container>
+        <el-header>
+          <h1>用户管理</h1>
+        </el-header>
+        <el-main>
+          
+        </el-main>
+      </el-container>
+    </el-container> -->
+
+
+
+
+
+
+  </div>
+  <script>
+
+    const appVue = new Vue({
+      el: '#app',
+      data() {
+        return {
+          username: null,
+          userRole: null,
+          users: [], // 用户列表
+          printLogs: [],//打印记录
+          files:[],
+          dateTimePick: null,
+          addDialogVisible: false, // 是否显示添加用户对话框
+          userForm: {
+            username: null,
+            password: null,
+            userRole: null
+
+          },
+          visible_userDelete: [],
+          visible_fileDelete:[],
+          isCollapse: 0,
+          viewHeight: window.innerHeight,
+          rUser: null,
+        };
+      },
+      methods: {
+        // 添加用户
+        addUser() {
+          if (!this.userForm.username) {
+            return this.$message.error('请输入用户名');
+
+          }
+          if (!this.userForm.userRole) {
+            return this.$message.error('请选择用户权限')
+          }
+          if (!this.userForm.password) {
+            return this.$message.error("请输入用户密码")
+          }
+          // 在这里调用后端 API 将用户添加到数据库
+          axios.post('/api/manage/add', this.userForm, {
+            headers: {
+              // 自定义请求头
+              'Authorization': localStorage.getItem('token')
+            }
+          }).then(response => {
+            this.$message({
+              message: '添加成功',
+              type: 'success'
+            });
+            // 然后将用户添加到 users 数组中
+            this.users.push(response.data);
+            // 重置表单
+            Object.keys(this.userForm).forEach(key => {
+              this.userForm[key] = null;
+            })
+            this.addDialogVisible = false;
+          }).catch(error => {
+            console.log(error);
+            this.$message.error('添加失败');
+          })
+
+        },
+        // 编辑用户
+        editUser(row) {
+          // 在这里实现编辑用户的逻辑
+          console.log('编辑用户', row);
+        },
+        // 删除用户
+        deleteUser(row) {
+          // 在这里调用后端 API 将用户从数据库中删除
+          if (row.username == this.username) {
+            this.$message.error('无法删除当前登录账号');
+            return console.log("无法删除当前登录账号")
+          }
+          axios.post('/api/manage/delete', { rUsername: row.username }, {
+            headers: {
+              // 自定义请求头
+              'Authorization': localStorage.getItem('token')
+            }
+          }).then(response => {
+            // 然后从 users 数组中移除对应的用户
+            this.users = this.users.filter(user => user.username !== row.username);
+            this.$message({
+              message: '删除成功',
+              type: 'success'
+            });
+          }).catch(error => {
+            this.$message.error('删除失败');
+          })
+
+        },
+        getUsers() {
+          axios.get('/api/manage/allUsers', {
+            headers: {
+              // 自定义请求头
+              'Authorization': localStorage.getItem('token')
+            }
+          }).then(response => {
+            this.users = response.data;
+          }).catch(error => {
+            this.$message.error('获取失败');
+          })
+        },
+        getPrintLogs() {
+          if (!this.dateTimePick) {
+            return this.$message.error('请选择时间段');
+          }
+          axios.get('/api/manage/printLogs', {
+            params: this.dateTimePick.map(time => time.getTime()),
+            headers: {
+              // 自定义请求头
+              'Authorization': localStorage.getItem('token')
+            }
+          }).then(response => {
+            this.printLogs = response.data;
+          }).catch(error => {
+            this.$message.error('获取失败');
+          })
+        },
+        
+        getFiles() {
+          axios.get('/api/manage/allFiles', {
+            headers: {
+              // 自定义请求头
+              'Authorization': localStorage.getItem('token')
+            }
+          }).then(response => {
+            this.files = response.data;
+          }).catch(error => {
+            this.$message.error('文件列表获取失败');
+          })
+        },
+        downloadFile(row) {
+          axios.get('/api/manage/getFile', {
+            params: row,
+            responseType: 'blob', // 指定响应类型为二进制流
+            headers: {
+              // 自定义请求头
+              'Authorization': localStorage.getItem('token')
+            }
+          }).then(response => {
+            const url = window.URL.createObjectURL(response.data);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download =  row.filename; // 设置下载文件的文件名
+            document.body.appendChild(link);
+            link.click();
+            window.URL.revokeObjectURL(url);
+          }).catch(error => {
+            console.log(error)
+            this.$message.error('下载失败');
+          })
+        },
+        deleteFile(row){
+            console.log(row)
+        }
+      },
+      created() {
+        window.addEventListener('resize', () => {
+          this.viewHeight = window.innerHeight;
+        })
+      },
+      async mounted() {
+        try {
+          const response = await axios.get('/api/vertify', {
+            headers: {
+              Authorization: localStorage.getItem('token')
+            }
+          });
+          if (response.status === 200) {
+            this.$message({
+              message: '自动登录成功',
+              type: 'success'
+            });
+            ({ username: this.username, userRole: this.userRole } = response.data)
+            // 在组件加载完成后加载用户列表
+            this.getUsers();
+            this.getFiles();
+          } else {
+            // this.$message.error('失败')
+          }
+        } catch (error) {
+          // this.$message.error('获取失败')
+        }
+
+      }
+    });
+  </script>
+</body>
+
+</html>

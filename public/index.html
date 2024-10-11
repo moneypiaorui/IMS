@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文件上传和打印</title>
+    <script src="./js/vue.min.js"></script>
+    <script src="./js/axios.min.js"></script>
+    <!-- 引入样式 -->
+    <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+    <!-- 引入组件库 -->
+    <script src="https://unpkg.com/element-ui/lib/index.js"></script>
+
+    <link rel="stylesheet" href="./css/index.css">
+</head>
+
+<body>
+    <div id="app">
+        <div class="blur"></div>
+        <div class="container">
+            <h1>文件上传和打印</h1>
+            <!-- <el-tooltip class="item" effect="dark" content="Bottom Center 提示文字" placement="bottom-end" color = "blue">
+            <i class = "el-icon-user-solid"></i>
+          </el-tooltip> -->
+            <el-table max-height="260" class="file-list" highlight-current-row @current-change="(row)=>{rFile = row}"
+                :data="fileList">
+                <el-table-column prop="filename" label="文件名">
+                </el-table-column>
+                <el-table-column align="center" width="50px" label="操作">
+                    <template slot-scope="scope">
+                        <el-popover placement="top-end" width="160" v-model="visible[scope.$index]">
+                            <p>确定删除吗？</p>
+                            <div style="text-align: right; margin: 0">
+                                <el-button size="mini" type="text"
+                                    @click="$set(visible,scope.$index,false)">取消</el-button>
+                                <el-button type="danger" size="mini"
+                                    @click="$set(visible,scope.$index,false);handleDelete(scope.$index, scope.row)">确定</el-button>
+                            </div>
+                            <el-button slot="reference" class="el-icon-delete" size="mini" type="danger"
+                                circle></el-button>
+                        </el-popover>
+                    </template>
+                </el-table-column>
+            </el-table>
+            <!-- 文件上传 -->
+            <div class="file-input">
+                <el-upload class="upload-demo" :limit="fileLimit" drag action="/upload" multiple
+                    :on-exceed="handleExceed" :before-upload="beforeUpload" :http-request="uploadFile">
+                    <i class="el-icon-upload"></i>
+                    <div class="el-upload__text">将文件拖到此处，或<em>点击上传</em></div>
+                    <div class="el-upload__tip" slot="tip">只能上传{{fileType.join('/')}}文件，且不超过50mb</div>
+                </el-upload>
+            </div>
+            <!-- 底部按钮 -->
+            <div class="button-container">
+                <el-button type="primary" @click="handlePrint" size="large" icon="el-icon-printer"></el-button>
+                <el-button type="primary" @click="handlePreview">预览</el-button>
+                <el-button type="primary" v-show = 'userRole=="admin"' @click="window.location.href ='/dashboard.html'">控制台</el-button>
+                <el-button type="danger" @click="logout" v-if="isLogin">登出</el-button>
+                <el-button type="primary" @click="login" v-else>登录</el-button>
+            </div>
+        </div>
+
+        <!-- 预览对话框 -->
+        <el-dialog title="预览" top='5vh' :visible.sync="previewDialogVisible" width="80vw" modal='1'
+            modal-append-to-body='1' append-to-body=1
+            :before-close="()=>{previewClose()}">
+            <iframe title="preview" :src="previewSrc" frameborder="0"></iframe>
+            <span slot="footer" class="dialog-footer">
+                <el-button @click="window.open(previewSrc)">新窗口打开</el-button>
+                <el-button type="primary"
+                    @click="previewClose">确 定</el-button>
+            </span>
+        </el-dialog>
+        <!-- 打印预览 -->
+        <el-dialog title="打印预览" top='5vh' :visible.sync="printDialogVisible" width="80vw" modal='1'
+            modal-append-to-body='1' append-to-body=1 :before-close="()=>{previewClose()}">
+            <iframe title="printPreview" :src="previewSrc" frameborder="0"></iframe>
+            <span slot="footer" class="dialog-footer">
+                <el-button @click="previewClose">取消</el-button>
+                <el-button type="primary" @click="printFile();previewClose(); ">确定</el-button>
+            </span>
+        </el-dialog>
+    </div>
+    <script>
+        const appVue = new Vue({
+            el: '#app',
+            data() {
+                return {
+                    isLogin: 0,
+                    username: '',
+                    userRole:'',
+                    file: null,
+                    rFile: { timestamp: null },
+                    error: null,
+                    //上传后的文件列表
+                    fileList: [],
+                    // 允许的文件类型
+                    fileType: ["pdf", "doc", "docx", "png", "jpg"],
+                    // 运行上传文件大小，单位 M
+                    fileSize: 50,
+                    // 附件数量限制
+                    fileLimit: 0,
+                    // 文件页数
+                    pages: 0,
+                    visible: [],
+                    previewDialogVisible: 0,
+                    printDialogVisible: 0,
+                    previewSrc: ''
+                };
+            },
+            methods: {
+                beforeUpload(file) {
+                    if (file.type != "" || file.type != null || file.type != undefined) {
+                        //截取文件的后缀，判断文件类型
+                        const FileExt = file.name.replace(/.+\./, "").toLowerCase();
+                        //计算文件的大小
+                        const isLt5M = file.size / 1024 / 1024 < 50; //这里做文件大小限制
+
+                        //如果大于50M
+                        if (!isLt5M) {
+                            this.$message('上传文件大小不能超过 50MB!');
+                            return false;
+                        }
+                        //如果文件类型不在允许上传的范围内
+                        if (this.fileType.includes(FileExt)) {
+                            console.log(`${file.name}文件格式合法`);
+                            return true;
+                        } else {
+                            this.$message.error(`文件格式不正确!`);
+                            return false;
+                        }
+                    }
+                },
+                //超出文件个数的回调
+                handleExceed() {
+                    this.$message({
+                        type: 'warning',
+                        message: '超出最大上传文件数量的限制！'
+                    }); return
+                },
+                // 上传文件
+                async uploadFile(item) {
+                    this.file = item.file
+                    const formData = new FormData();
+                    formData.append('file', this.file, encodeURIComponent(this.file.name));
+                    try {
+                        const response = await axios.post('/api/upload', formData, {
+                            headers: {
+                                Authorization: localStorage.getItem('token')
+                            }
+                        });
+                        if (response.status === 200) {
+                            this.$message({
+                                message: '上传成功',
+                                type: 'success'
+                            });
+                            // 刷新文件列表
+                            // this.getFileList()
+                            this.fileList.push(response.data);
+                        } else {
+                            this.$message.error('上传失败')
+
+                        }
+                    } catch (error) {
+                        this.$message.error('上传失败', error)
+                    }
+                },
+                // 删除
+                async handleDelete(index, row) {
+                    try {
+                        const response = await axios.post('/api/files/delete', row, {
+                            headers: {
+                                Authorization: localStorage.getItem('token')
+                            }
+                        });
+                        if (response.status === 200) {
+                            this.$message({
+                                message: '删除成功',
+                                type: 'success'
+                            });
+                            // 刷新文件列表
+                            this.fileList = this.fileList.filter(file => file.timestamp != row.timestamp)
+                            if (row.timestamp == this.rFile.timestamp) this.rFile = { timestamp: null };//若删除的是选择的的文件，解除选中
+                        } else {
+                            this.$message.error('删除失败')
+                        }
+                    } catch (error) {
+                        // this.$message.error('删除失败')
+                    }
+                },
+                getPreview() {
+                    if (!this.rFile||!this.rFile.timestamp) {
+                        this.$message({
+                            message: '请先选择文件',
+                            type: 'warning'
+                        });
+                        throw new Error('请先选择文件');
+                    }
+                    // 直链，由于token认证的中间件无法获取文件
+                    // const url = new URL('/files/preview', window.location.origin);
+                    // url.search = new URLSearchParams(this.rFile).toString();
+                    // this.previewSrc = url;
+
+                    return axios.get('/api/files/preview', {
+                        params: this.rFile,
+                        responseType: 'blob', // 指定响应类型为二进制流
+                        headers: {
+                            Authorization: localStorage.getItem('token')
+                        }
+                    }).then(response => {
+                        // const blob = new Blob([response.data], { type: response.headers['content-type'] });
+                        this.previewSrc = window.URL.createObjectURL(response.data);
+
+                        // const link = document.createElement('a');
+                        // link.href = url;
+                        // link.download =  this.rFile.filename+'.pdf'; // 设置下载文件的文件名
+                        // document.body.appendChild(link);
+                        // link.click();
+
+                        // window.URL.revokeObjectURL(url);
+                    });
+                },
+                previewClose() {
+                    window.URL.revokeObjectURL(this.previewSrc);
+                    this.previewDialogVisible = false;
+                    this.printDialogVisible = false;
+                },
+                async handlePreview() {
+                    try {
+                        await this.getPreview();
+                        this.$message({
+                            message: '预览获取成功',
+                            type: 'success'
+                        });
+                        // 打开预览框
+                        this.previewDialogVisible = 1;
+                    } catch (err) {
+                        console.log(err);
+                    }
+
+                },
+                // 打印
+                async handlePrint() {
+                    try {
+                        await this.getPreview();
+                        this.$message({
+                            message: '预览获取成功',
+                            type: 'success'
+                        });
+                        // 打开预览框
+                        this.printDialogVisible = 1;
+                    } catch (err) {
+                        console.log(err);
+                    }
+
+                },
+                async printFile() {
+                    if (!this.rFile.timestamp) {
+                        return this.$message({
+                            message: '请先选择文件',
+                            type: 'warning'
+                        });
+                    }
+                    try {
+                        const response = await axios.post('/api/print', this.rFile, {
+                            headers: {
+                                Authorization: localStorage.getItem('token')
+                            }
+                        });
+                        if (response.status === 200) {
+                            // 获取页数
+                            this.pages = response.data.pages;
+                            console.log("pages:" + this.pages);
+
+                            this.$message({
+                                message: `打印成功,共${this.pages}页`,
+                                type: 'success'
+                            });
+                            const h = this.$createElement;//
+                            this.$msgbox({
+                                title: '已通知打印机',
+                                message: h('p', null, [
+                                    h('p', null, `一共${this.pages}张，每张0.1元，共${this.pages * 0.1}元`),
+                                    h('p', null, [
+                                        h('img', { style: 'width:50%', attrs: { src: './img/Receive1.jpg' } }, ''),
+                                        h('img', { style: 'width:50%', attrs: { src: './img/Receive2.jpg' } }, '')
+                                    ])
+                                ]),
+                                confirmButtonText: '我知道了',
+                            }).then(action => {
+                                console.log(action);
+                            });
+                        } else {
+                            this.$message.error('打印失败');
+                        }
+                    } catch (error) {
+                        console.log(error)
+                        this.$message.error('打印失败');
+                    }
+                },
+                async login() {
+                    window.location.href = "./login.html"
+                },
+                // 获取所有文件的文件名
+                async getFileList() {
+                    try {
+                        const response = await axios.get('/api/files/allFiles', {
+                            headers: {
+                                Authorization: localStorage.getItem('token')
+                            }
+                        });
+                        if (response.status === 200) {
+                            this.$message({
+                                message: '文件获取成功',
+                                type: 'success'
+                            });
+                            this.fileList = response.data;
+                        } else {
+                            this.$message.error('文件获取失败')
+                        }
+                    } catch (error) {
+                        this.$message.error('文件获取失败')
+                    }
+                },
+                logout() {
+                    this.$message({
+                        message: '退出登录',
+                        type: 'warning'
+                    });
+                    localStorage.removeItem('token');
+                    this.isLogin = 0;
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1000);
+                }
+
+            },
+            computed: {
+
+            },
+            created() {
+
+            },
+            async mounted() {
+                if (localStorage.getItem("token") == null) {
+                    return this.$notify({
+                        title: '警告',
+                        message: '您没有登陆',
+                        type: 'warning',
+                        duration: 0
+                    });
+                } else {
+                    try {
+                        const response = await axios.get('/api/vertify', {
+                            headers: {
+                                Authorization: localStorage.getItem('token')
+                            }
+                        });
+                        if (response.status === 200) {
+                            this.isLogin = 1;
+                            ({username:this.username,userRole:this.userRole} = response.data)
+                            this.$message({
+                                message: '欢迎登录, 用户' + this.username,
+                                type: 'success'
+                            });
+                            // 刷新文件列表
+                            await this.getFileList();
+                        } else {
+                            this.$notify({
+                                title: '警告',
+                                message: 'Token已过期，请重新登陆',
+                                type: 'warning',
+                                duration: 0
+                            });
+                        }
+                    } catch (error) {
+                        // this.$message.error('获取失败')
+                    }
+                }
+
+
+                const h = this.$createElement;//
+                this.$msgbox({
+                    title: '重要通知',
+                    message: h('p', null, [
+                        h('p', null, '虽然后端支持了使用libreOffice转化doc和docx文档成pdf打印，但libreOffice转化的格式不一定准确,所以'),
+                        h('p', null, [
+                            h('strong', { style: { color: 'red', fontSize: '18px' } }, '打印前一定要预览'),]),
+                        h('p', null, [
+                            h('span', null, '如果格式不理想请到'),
+                            h('a', { attrs: { target: "_blank", href: 'https://smallpdf.com/pdf-converter' } }, '这里'),
+                            h('span', null, '手动转换成pdf再上传打印')
+                        ])
+                    ]),
+                    confirmButtonText: '我知道了',
+                }).then(action => {
+                    console.log(action);
+                });
+            }
+
+        });
+    </script>
+</body>
+
+</html>

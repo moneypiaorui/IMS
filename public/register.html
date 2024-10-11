@@ -1,0 +1,211 @@
+<html>
+
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录</title>
+    <style>
+        ::-webkit-scrollbar {
+            display: none;
+        }
+
+        #body {
+            width: 400px;
+            height: 440px;
+            margin: 100px auto;
+            background-color: white;
+            opacity: 0.8;
+            border-radius: 10px;
+            text-align: center;
+            padding-top: 10px;
+            position: relative;
+        }
+
+        #load {
+            color: rgb(83, 129, 223);
+            display: block;
+            font-size: 40px;
+            margin-top: 10px;
+        }
+
+        #body span p {
+            display: block;
+            font-size: 15px;
+            text-align: left;
+            margin: 10px 40px;
+        }
+
+        #body span input {
+            width: 80%;
+            height: 30px;
+            border-radius: 5px;
+            background-color: rgb(198, 207, 220);
+            margin: auto;
+            border: 0px;
+        }
+
+        #login {
+            display: block;
+            height: 40px;
+            width: 120px;
+            background-color: rgb(51, 110, 198);
+            color: rgb(255, 255, 255);
+            font-size: 20px;
+            margin: 30px 40px;
+            border-radius: 5px;
+            border: 0px;
+            transition: 0.1s;
+        }
+
+        .alert {
+            display: block;
+            font-size: 20px;
+            font-family: "微软雅黑";
+            height: 40px;
+            width: 80%;
+            padding-top: 12px;
+            margin: 10px 40px;
+            border-radius: 5px;
+            opacity: 0;
+            /* transform: translateY(20px); */
+        }
+
+        /* 震动动画 */
+        @keyframes shake {
+            0% {
+                transform: translateX(0);
+            }
+
+            20% {
+                transform: translateX(-10px);
+            }
+
+            40% {
+                transform: translateX(10px);
+            }
+
+            60% {
+                transform: translateX(-10px);
+            }
+
+            80% {
+                transform: translateX(10px);
+            }
+
+            100% {
+                transform: translateX(0);
+            }
+        }
+
+        .shake {
+            opacity: 1;
+            background-color: rgba(255, 0, 0, 0.4);
+            color: red;
+            animation: shake 0.5s;
+        }
+    </style>
+</head>
+<meta charset="UTF-8">
+
+<body style="background-color: rgb(6, 19, 37);">
+    <div id="body">
+        <span id="load">注册</span>
+        <span class="alert">123</span>
+        <form @submit.prevent="register">
+            <span id="username">
+                <p>账号</p><input type="text" v-model="username" placeholder="用户名" required>
+            </span>
+            <span id="password">
+                <p>密码</p><input type="password" v-model="password" placeholder="输入密码" required>
+            </span>
+            <span id="check">
+                <p>再次输入密码</p><input type="password" v-model="check" placeholder="确认密码" required>
+            </span>
+            <button type="submit" id="login">注册</button>
+    </div>
+    </form>
+    </div>
+    <!-- <div id="app">
+        <h1>登录</h1>
+        
+            
+            
+            <button type="submit">登录</button>
+            <button type="button" >注册</button>
+    </div> -->
+</body>
+
+<script src="./js/vue.min.js"></script>
+<script src="./js/axios.min.js"></script>
+<script>
+
+    new Vue({
+        el: '#body',
+        data() {
+            return {
+                username: '',
+                password: '',
+                userRole:'user',
+                check: ''
+            };
+        },
+        mounted() {
+            this.al = document.querySelector(".alert");
+        },
+        methods: {
+            async register() {
+                // 发送注册请求到后端
+                try {
+                    if (this.password != this.check) {
+                        this.al.innerHTML = "两次密码不同";
+                        this.showAlert2();
+                    } else {
+                        const response = await axios.post('/api/users/register', {
+                            username:this.username,
+                            password:this.password,
+                            userRole:this.userRole
+                        });
+                        // 处理注册成功的逻辑
+                        this.al.innerHTML = "注册成功";
+                        this.showAlert1();
+                        setTimeout(() => {
+                            window.location.href = "./login.html";
+                        }, 800)
+                        console.log(response.data);
+                    }
+
+                } catch (error) {
+                    // 处理登录失败的逻辑
+                    this.al.innerHTML = "注册失败";
+                    this.showAlert2();
+                    console.error(error);
+                }
+            },
+            showAlert1() {
+
+                this.al.style.transition = "0s";
+                this.al.style.backgroundColor = "rgba(0, 128, 0,0.4)";
+                this.al.style.color = "green";
+                this.al.style.transform = "translateY(20px)";
+                setTimeout(() => {
+                    this.al.style.transition = "0.2s";
+                    this.al.style.opacity = 1
+                    this.al.style.transform = "translateY(0px)";
+                }, 1)
+
+                setTimeout(() => {
+                    this.al.style.opacity = 0;
+                    this.al.style.transform = "translateY(-20px)";
+                }, 600)
+            },
+            showAlert2() {
+
+                this.al.classList.add('shake')
+                setTimeout(() => {
+                    this.al.classList.remove('shake')
+                }, 1000)
+
+            }
+
+        }
+    })
+</script>

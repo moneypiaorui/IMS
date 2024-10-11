@@ -1,0 +1,118 @@
+::-webkit-scrollbar {
+    display: none;
+}
+/* 媒体查询，根据屏幕宽度选择图片 */
+@media screen and (max-width: 1000px) {
+    .blur {
+        background-image: url('/api/backgroud/mp');
+    }
+}
+@media screen and (min-width: 1000px) {
+    .blur {
+        background-image: url('/api/backgroud/pc');
+    }
+}
+
+body {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    padding: 0 0;
+    margin: 0 0;
+    font-family: Arial, sans-serif;
+    z-index: -5;
+}
+
+#app {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-color: rgb(165, 182, 202);
+    z-index: -2;
+    padding: 10px 10px;
+}
+
+.blur {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    background-size: cover;
+    /* filter: blur(2px); */
+    z-index: -1;
+}
+
+.container {
+    width: 100%;
+    max-width: 540px;
+    margin: 10vh auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(255, 255, 255, 0.5);
+    backdrop-filter: blur(4px) brightness(120%);
+    border-radius: 40px;
+
+    box-shadow: 30px 30px 30px -10px rgba(0, 0, 0, .15),
+        inset 12px 12px 10px rgba(255, 255, 255, .5),
+        -15px -15px 35px rgba(255, 255, 255, .4),
+        inset -1px -1px 10px rgba(0, 0, 0, .2);
+    /* box-shadow: 20px 20px 20px 0px rgba(0, 0, 0, .15), inset -20px -20px 14px 0px rgba(255, 255, 255, .5), inset 20px 20px 20px rgb(0 0 0 / 40%), -20px -20px 20px rgb(255 255 255 / 20%); */
+}
+
+.container>div {
+    margin-bottom: 30px;
+    border-radius: 10px;
+}
+
+.file-list {
+    opacity: 0.8;
+    width: 380px;
+}
+
+.file-input {
+    opacity: 0.8;
+    margin-bottom: 20px;
+}
+
+.button-container {
+    display: flex;
+    justify-content: center;
+}
+
+.button-container button {
+    margin: 0 10px;
+}
+
+.success-message {
+    text-align: center;
+    margin-top: 20px;
+    color: green;
+}
+
+.error-message {
+    text-align: center;
+    margin-top: 20px;
+    color: red;
+}
+
+h1 {
+    /* text-align: center; */
+    color: #409EFF;
+    font-family: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "微软雅黑", Arial, sans-serif;
+}
+
+iframe {
+    width: 95%;
+    height: 70vh;
+    display: block;
+    margin: 0 auto;
+}
